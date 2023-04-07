@@ -58,7 +58,7 @@ void timer_calibrate(void)
   /* Refine the next 8 bits of loops_per_tick. */
   high_bit = loops_per_tick;
   for (test_bit = high_bit >> 1; test_bit != high_bit >> 10; test_bit >>= 1)
-    if (!too_many_loops(loops_per_tick | test_bit))
+    if (!too_many_loops(high_bit | test_bit))
       loops_per_tick |= test_bit;
 
   printf("%'" PRIu64 " loops/s.\n", (uint64_t)loops_per_tick * TIMER_FREQ);
@@ -76,6 +76,8 @@ timer_ticks(void)
 
 /* Returns the number of timer ticks elapsed since THEN, which
    should be a value once returned by timer_ticks(). */
+
+// Devuelve el numero de ticks que han transcurrido desde que Pintos inició su ejecución.
 int64_t
 timer_elapsed(int64_t then)
 {
@@ -84,13 +86,17 @@ timer_elapsed(int64_t then)
 
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
+
+// Suspende la ejecución del thread actual hasta que hayan transcurrido al menos el número de ticks recibidos como argumento.
 void timer_sleep(int64_t ticks)
 {
   int64_t start = timer_ticks();
 
   ASSERT(intr_get_level() == INTR_ON);
-  while (timer_elapsed(start) < ticks)
-    thread_yield();
+  /*while (timer_elapsed (start) < ticks)
+    thread_yield ();*/
+
+  insertar_en_lista_espera(ticks);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -157,11 +163,14 @@ void timer_print_stats(void)
 }
 
 /* Timer interrupt handler. */
+// Es el reloj de Pintos. Cuando esta función sea llamada, la variable global ticks se incrementará en uno.
 static void
 timer_interrupt(struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick();
+
+  remover_thread_durmiente(ticks);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
