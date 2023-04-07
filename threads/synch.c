@@ -67,6 +67,7 @@ void sema_down(struct semaphore *sema)
   while (sema->value == 0)
   {
     // list_push_back (&sema->waiters, &thread_current ()->elem);
+    //  se ordena descendentemente para qu el thread que se despierte, sea el de mas alta prioridad
     list_insert_ordered(&sema->waiters, &thread_current()->elem, ordenarMayorMenor, NULL);
     thread_block();
   }
@@ -189,6 +190,18 @@ void lock_acquire(struct lock *lock)
   ASSERT(lock != NULL);
   ASSERT(!intr_context());
   ASSERT(!lock_held_by_current_thread(lock));
+  // Se verificara la donacion al momento de solicitar el lock
+  struct thread *threadLock = lock->holder;
+  struct thread *threadActual = thread_current();
+
+  if (threadLock != NULL)
+  {
+    // Si la prioridad del thread que tiene el Lock, es menor que la del thread actual, donar
+    if (threadLock->priority < threadActual->priority)
+    {
+      threadLock->priority = threadActual->priority;
+    }
+  }
 
   sema_down(&lock->semaphore);
   lock->holder = thread_current();
@@ -225,6 +238,9 @@ void lock_release(struct lock *lock)
 
   lock->holder = NULL;
   sema_up(&lock->semaphore);
+  // Al finalizar el lock, restaurar la prioridad
+  struct thread *threadActual = thread_current();
+  threadActual->priority = threadActual->priorityOriginal;
 }
 
 /* Returns true if the current thread holds LOCK, false
