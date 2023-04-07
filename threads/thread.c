@@ -251,12 +251,6 @@ void thread_unblock(struct thread *t)
   list_insert_ordered(&ready_list, &t->elem, ordenarMayorMenor, NULL);
   t->status = THREAD_READY;
 
-  // verificar si el thread actual, no es el fake thread
-  if (thread_current() != idle_thread)
-  {
-    thread_yield();
-  }
-
   intr_set_level(old_level);
 }
 
@@ -354,7 +348,14 @@ void thread_foreach(thread_action_func *func, void *aux)
 void thread_set_priority(int new_priority)
 {
   struct thread *siguienteAEjecutar;
-  thread_current()->priority = new_priority;
+  // thread_current ()->priority = new_priority;
+
+  struct thread *threadActual = thread_current();
+  if (threadActual->priority == threadActual->priorityOriginal)
+  {
+    threadActual->priorityOriginal = new_priority;
+  }
+  threadActual->priority = new_priority;
 
   if (!list_empty(&ready_list))
   {
@@ -500,6 +501,8 @@ init_thread(struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *)t + PGSIZE;
   t->priority = priority;
   t->priorityOriginal = priority;
+  t->waiting_for_lock = NULL;  // Al iniciar el thread no espera por un lock
+  list_init(&t->holding_lock); // Se inicializa la lista de los locks que tiene el thread
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable();
