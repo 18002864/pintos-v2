@@ -35,3 +35,13 @@ void sys_exit(int);
     Escribe size bytes desde el búfer al archivo abierto fd.
 */
 int sys_write(int fd, const void *buffer, unsigned size);
+/*
+    Ejecuta el ejecutable cuyo nombre se da en cmd_line, pasando los argumentos dados y
+    devuelve el ID de programa (pid) del nuevo proceso, devuelve pid -1 de otro modo
+*/
+tid_t sys_exec(const char *cmd_line);
+
+void syscall_init(void)
+{
+  intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
+}
