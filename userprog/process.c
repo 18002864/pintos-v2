@@ -41,13 +41,14 @@ tid_t process_execute(const char *file_name)
 
   /*
   No desea que el hilo tenga el nombre de archivo sin formato.
-  En su lugar, desea que el nombre del hilo sea el nombre del ejecutable.
-  Deberá extraer el nombre del ejecutable de file_name y pasarlo en su lugar.
+  En su lugar, desea que el nombre del hilo sea el nombre del
+  ejecutable. Deberá extraer el nombre del ejecutable de file_name
+  y pasarlo en su lugar.
   */
-  file_name = strtok_r((char *)file_name, " ", &ptr);
+  char *name = strtok_r((char *)fn_copy, " ", &ptr);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create(file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create(name, PRI_DEFAULT, start_process, ptr);
   if (tid == TID_ERROR)
     palloc_free_page(fn_copy);
   return tid;
