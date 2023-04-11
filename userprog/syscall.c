@@ -46,6 +46,111 @@ void syscall_init(void)
   intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
+static void
+syscall_handler(struct intr_frame *f UNUSED)
+{
+  int sys_code;
+  // validar que sea un puntero valido
+  if (get_user_bytes(f->esp, &sys_code, sizeof(sys_code)) == -1)
+  {
+    sys_exit(-1);
+  }
+
+  switch (sys_code)
+  {
+  case SYS_HALT:
+  {
+    sys_halt();
+    break;
+  }
+  case SYS_EXIT:
+  {
+    int status;
+
+    // para leer un argumento en la documentacion
+    // int fd = *((int*)f->esp + 1); <--- esto es sin validar y como parsea a int +1 es
+    // equivalente a +4 sin parsear 4 bytes
+
+    int retorno = get_user_bytes(f->esp + 4, &status, sizeof(status));
+
+    if (retorno == -1)
+    {
+      sys_exit(-1);
+    }
+    else
+    {
+      sys_exit(status);
+    }
+    break;
+  }
+  case SYS_WRITE:
+  {
+    int fd;
+    const void *buffer;
+    unsigned size;
+
+    if (get_user_bytes(f->esp + 4, &fd, sizeof(fd)) == -1)
+    {
+      sys_exit(-1);
+    }
+
+    if (get_user_bytes(f->esp + 8, &buffer, 4) == -1)
+    {
+      sys_exit(-1);
+    }
+
+    if (get_user_bytes(f->esp + 12, &size, 4) == -1)
+    {
+      sys_exit(-1);
+    }
+
+    int retorno = sys_write(fd, buffer, size);
+    if (retorno == 0)
+    {
+      thread_exit();
+    }
+    else
+    {
+      f->eax = (uint32_t)retorno; // indicamos cuantos bytes se escribieron
+    }
+    break;
+  }
+  case SYS_EXEC:
+  {
+    void *cmd_line;
+
+    int retorno = get_user_bytes(f->esp + 4, &cmd_line, sizeof(cmd_line));
+    if (retorno == -1)
+    {
+      sys_exit(-1);
+    }
+
+    tid_t pid = sys_exec((const char *)cmd_line);
+    f->eax = (uint32_t)pid;
+    break;
+  }
+  default:
+    thread_exit();
+    break;
+  }
+}
+
+void sys_halt(void)
+{
+  shutdown_power_off();
+}
+
+void sys_exit(int status)
+{
+  /*
+    Siempre que un proceso de usuario finaliza, porque llamó a exit o por cualquier otra razón,
+    imprima el nombre del proceso y el código de salida, formateado como si estuviera impreso
+    por printf ("%s: exit(%d)\n", ...);
+  */
+  printf("%s: exit(%d)\n", thread_current()->name, status);
+  thread_exit();
+}
+
 static int get_user(const uint8_t *uaddr)
 {
   // obtuvimos esta funcion de https://web.stanford.edu/~ouster/cgi-bin/cs140-spring20/pintos/pintos_3.html#SEC44
